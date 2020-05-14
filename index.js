@@ -34,10 +34,10 @@ app.post('/v1/doscg/webhook', line.middleware(config), (req, res) => {
 
 // simple reply function
 const replyText = (token, texts) => {
-  texts = Array.isArray(texts) ? texts+'นะจ๊ะ' : [texts];
+  texts = Array.isArray(texts) ? texts : [texts];
   return client.replyMessage(
     token,
-    texts.map((text) => ({ type: 'text', text: text+' นะจ๊ะ' }))
+    texts.map((text) => ({ type: 'text', text: text + ' ครับ' }))
   );
 };
 
