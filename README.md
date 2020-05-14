@@ -1,5 +1,5 @@
-# line-bot-nodejs-starter
-starter point to create new line bot project
+# line-bot-expressjs
+start create new line bot project
 
 ## How it work
 Start express server to handle webhook from LINE
@@ -23,11 +23,11 @@ npm start
 ```
 then you can access [http://localhost:3000](http://localhost:3000)
 
+Dowload [ngrok](https://dashboard.ngrok.com/get-started/setup) 
+and set up step 1-3
+
 Use [ngrok](https://ngrok.com/) to expose your local url
 ```
-path/to/ngrok http 3000
+./ngrok http 3000
 ```
 config webhook url in developer console then enjoy your bot!
-
-## Author
-Sirichai Janpan
