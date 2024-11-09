@@ -4,27 +4,18 @@ const line = require('@line/bot-sdk');
 const express = require('express');
 const config = require('./config.json');
 
-// create LINE SDK client
+// Create LINE SDK client
 const client = new line.Client(config);
 
 const app = express();
 
-// webhook callback
+// Webhook callback
 app.post('/v1/doscg/webhook', line.middleware(config), (req, res) => {
-  // req.body.events should be an array of events
   if (!Array.isArray(req.body.events)) {
     return res.status(500).end();
   }
-  // handle events separately
-  Promise.all(req.body.events.map(event => {
-    console.log('event', event);
-    // check verify webhook event
-    if (event.replyToken === '00000000000000000000000000000000' ||
-      event.replyToken === 'ffffffffffffffffffffffffffffffff') {
-      return;
-    }
-    return handleEvent(event);
-  }))
+
+  Promise.all(req.body.events.map(handleEvent))
     .then(() => res.end())
     .catch((err) => {
       console.error(err);
@@ -32,62 +23,70 @@ app.post('/v1/doscg/webhook', line.middleware(config), (req, res) => {
     });
 });
 
-// simple reply function
+// Simple reply function
 const replyText = (token, texts) => {
   texts = Array.isArray(texts) ? texts : [texts];
   return client.replyMessage(
     token,
-    texts.map((text) => ({ type: 'text', text: text + ' ครับ' }))
+    texts.map((text) => ({ type: 'text', text: `${text} ครับ` }))
   );
 };
 
-// callback function to handle a single event
-function handleEvent(event) {
+// Event handler function
+async function handleEvent(event) {
+  // Skip verify webhook events
+  if (isVerifyEvent(event)) return;
+
   switch (event.type) {
     case 'message':
-      const message = event.message;
-      switch (message.type) {
-        case 'text':
-          return handleText(message, event.replyToken);
-        case 'image':
-          return handleImage(message, event.replyToken);
-        case 'video':
-          return handleVideo(message, event.replyToken);
-        case 'audio':
-          return handleAudio(message, event.replyToken);
-        case 'location':
-          return handleLocation(message, event.replyToken);
-        case 'sticker':
-          return handleSticker(message, event.replyToken);
-        default:
-          throw new Error(`Unknown message: ${JSON.stringify(message)}`);
-      }
-
+      return handleMessage(event);
     case 'follow':
       return replyText(event.replyToken, 'Got followed event');
-
     case 'unfollow':
       return console.log(`Unfollowed this bot: ${JSON.stringify(event)}`);
-
     case 'join':
       return replyText(event.replyToken, `Joined ${event.source.type}`);
-
     case 'leave':
       return console.log(`Left: ${JSON.stringify(event)}`);
-
     case 'postback':
-      let data = event.postback.data;
-      return replyText(event.replyToken, `Got postback: ${data}`);
-
+      return replyText(event.replyToken, `Got postback: ${event.postback.data}`);
     case 'beacon':
-      const dm = `${Buffer.from(event.beacon.dm || '', 'hex').toString('utf8')}`;
-      return replyText(event.replyToken, `${event.beacon.type} beacon hwid : ${event.beacon.hwid} with device message = ${dm}`);
-
+      return handleBeacon(event);
     default:
       throw new Error(`Unknown event: ${JSON.stringify(event)}`);
   }
 }
 
+// Check if the event is a verification event
+function isVerifyEvent(event) {
+  const verifyTokens = [
+    '00000000000000000000000000000000',
+    'ffffffffffffffffffffffffffffffff'
+  ];
+  return verifyTokens.includes(event.replyToken);
+}
+
+// Handle different types of message events
+function handleMessage(event) {
+  const { message } = event;
+  const handlers = {
+    text: handleText,
+    image: handleImage,
+    video: handleVideo,
+    audio: handleAudio,
+    location: handleLocation,
+    sticker: handleSticker,
+  };
+
+  const handler = handlers[message.type];
+  if (!handler) {
+    throw new Error(`Unknown message type: ${message.type}`);
+  }
+
+  return handler(message, event.replyToken);
+}
+
+// Specific message handlers
 function handleText(message, replyToken) {
   return replyText(replyToken, message.text);
 }
@@ -112,7 +111,13 @@ function handleSticker(message, replyToken) {
   return replyText(replyToken, 'Got Sticker');
 }
 
+function handleBeacon(event) {
+  const dm = `${Buffer.from(event.beacon.dm || '', 'hex').toString('utf8')}`;
+  return replyText(event.replyToken, `${event.beacon.type} beacon hwid: ${event.beacon.hwid} with device message: ${dm}`);
+}
+
+// Start server
 const port = config.port;
 app.listen(port, () => {
-  console.log(`listening on ${port}`);
+  console.log(`Listening on port ${port}`);
 });
